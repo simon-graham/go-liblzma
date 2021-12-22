@@ -5,7 +5,8 @@
 package xz
 
 /*
-#cgo LDFLAGS: -llzma
+#cgo CFLAGS: -I${SRCDIR}/third_party/xz-5.2.5/include
+#cgo LDFLAGS: -L${SRCDIR}/third_party/xz-5.2.5/lib -llzma
 #include <lzma.h>
 #include <stdlib.h>
 int go_lzma_code(
