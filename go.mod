@@ -1,1 +1,1 @@
-module github.com/remyoudompheng/go-liblzma
+module github.com/simon-graham/go-liblzma
