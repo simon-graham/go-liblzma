@@ -20,15 +20,12 @@ int go_lzma_code(
 
 int go_lzma_code_mt(
     lzma_stream* handle,
-    bool reload,
     void* next_in,
     void* next_out,
     lzma_action action
 ) {
-    if (reload) {
-	    handle->next_in = next_in;
-	    handle->next_out = next_out;
-	}
+    handle->next_in = next_in;
+    handle->next_out = next_out;
     return lzma_code(handle, action);
 }
 
@@ -48,8 +45,10 @@ int go_lzma_init_mt(
 		.check = check,
 	};
 	options.threads = lzma_cputhreads();
-	if (thread_num > 0) {
+	if (thread_num > 0 && thread_num <= options.threads) {
 		options.threads = thread_num;
+	} else if (thread_num == 0) {
+		options.threads = 1;
 	}
 	return lzma_stream_encoder_mt(handle, &options);
 }
@@ -102,14 +101,9 @@ func NewWriterCustom(w io.Writer, preset Preset, check Checksum, bufsize int, ma
 	enc.buffer = make([]byte, bufsize)
 	enc.handle = allocLzmaStream(enc.handle)
 	enc.totalIn = 0
-	threadNum := runtime.NumCPU()
-
-	if threadNum > maxThreadNum {
-		threadNum = maxThreadNum
-	}
 
 	// Initialize encoder
-	ret := C.go_lzma_init_mt(enc.handle, C.uint32_t(preset), C.lzma_check(check), C.int32_t(threadNum))
+	ret := C.go_lzma_init_mt(enc.handle, C.uint32_t(preset), C.lzma_check(check), C.int32_t(maxThreadNum))
 	if Errno(ret) != Ok {
 		return nil, Errno(ret)
 	}
@@ -127,7 +121,6 @@ func (enc *Compressor) Write(in []byte) (n int, er error) {
 	enc.totalIn += uint64(len(in))
 	partCount := 0
 	offset := 0
-	reloadPtrs := false
 	enc.handle.avail_in = 0
 	enc.handle.avail_out = C.size_t(len(enc.buffer))
 
@@ -140,12 +133,10 @@ func (enc *Compressor) Write(in []byte) (n int, er error) {
 				enc.handle.avail_in = C.size_t(len(in) - DefaultPartSize*partCount)
 			}
 			partCount++
-			reloadPtrs = true
 		}
 
 		ret := C.go_lzma_code_mt(
 			enc.handle,
-			C.bool(reloadPtrs),
 			unsafe.Pointer(&in[offset]),
 			unsafe.Pointer(&enc.buffer[0]),
 			C.lzma_action(Run),
@@ -160,8 +151,6 @@ func (enc *Compressor) Write(in []byte) (n int, er error) {
 
 		produced := len(enc.buffer) - int(enc.handle.avail_out)
 
-		n = len(in) - int(enc.handle.avail_in)
-
 		if produced > 0 {
 			// Write back result.
 			_, er = enc.writer.Write(enc.buffer[:produced])
@@ -172,7 +161,7 @@ func (enc *Compressor) Write(in []byte) (n int, er error) {
 			enc.handle.avail_out = C.size_t(len(enc.buffer))
 		}
 
-		if uint64(enc.handle.total_in) == enc.totalIn {
+		if enc.totalIn == uint64(enc.handle.total_in) {
 			n = len(in)
 			return
 		}
