@@ -6,7 +6,8 @@ package xz
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/third_party/xz-5.2.5/include
-#cgo LDFLAGS: -L${SRCDIR}/third_party/xz-5.2.5/lib -llzma
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/third_party/xz-5.2.5/lib/linux/amd64 -llzma
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/third_party/xz-5.2.5/lib/darwin/amd64 -llzma
 #include <lzma.h>
 #include <stdlib.h>
 
