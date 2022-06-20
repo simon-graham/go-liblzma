@@ -39,7 +39,7 @@ int go_lzma_init_mt(
 ) {
 	lzma_mt options = {
 		.flags = 0,
-		.block_size = 1024 * 1024 * 8,
+		.block_size = 0,
 		.timeout = 0,
 		.threads = 0,
 		.preset = preset,
